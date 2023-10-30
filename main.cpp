@@ -86,4 +86,12 @@ In WM_DESTROY, destroy the buffer object
 */
 
 /*
+IDC_LIST initialization
+In WM_INITDIALOG, initialize IDC_LIST the following way:
+Set the extended style LVS_EX_FULLROWSELECT for the list so that only whole rows are selected in the list. For this, use LVM_SETEXTENDEDLISTVIEWSTYLE
+Add columns to the list, specifying headings and widths. For this, use LVM_INSERTCOLUMN
+*/
+
+/*
+Process service thread
 */
