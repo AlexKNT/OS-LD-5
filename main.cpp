@@ -93,7 +93,7 @@ Add columns to the list, specifying headings and widths. For this, use LVM_INSER
 */
 
 /*
-Process service thread
+Process service thread function
 At the start of the thread creation function, save the position number of the buffer, which will be specified as a parameter during the creation of the thread:
 DWORD WINAPI ProcessThread(void* APos)
 {
@@ -110,5 +110,16 @@ After loop ends, change the state of the process in the buffer to psTerminated a
 
 /*
 WM_UPDATELIST message
+Use LVM_FINDITEM message to find an element in IDC_LIST whose parameter is equal to the number of the changed buffer position. The number of the changed buffer position must be read from the wParam parameter of the message
+If the element is found then read process information from the changed buffer position and write it to the corresponding list element position using LVM_SETITEM messages
+*/
 
+/*
+IDC_STARTBTN button
+Find the next empty position in the buffer and write there the name of the process to be launched from the IDC_COMMANDLINE:
+int pos = Buffer.AddProcess(command_line);
+Add the new element to the IDC_LIST via the LVM_INSERTITEM message, specifying the buffer position number as the element parameter.
+Call Process service thread function, pass to it the buffer position number
+Close the handle:
+CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
 */
