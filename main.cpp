@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "resource.h"
 #include "TBuffer.h"
+#include <processthreadsapi.h>
 #pragma warning(disable : 4996)
 
 TBuffer* Buffer;
@@ -130,4 +131,12 @@ Use LVM_GETSELECTIONMARK message to determine the position number of the selecte
 Use LVM_GETITEM message to read the parameter of the selected list element that will denote the the buffer position number
 Delete the information about the process from the buffer
 If state of the process is not equal to psRunning then delete the element from IDC_LIST using LVM_DELETEITEM and denote the buffer position number with psEmpty.
+*/
+
+/*
+IDC_KILLBTN
+Use LVM_GETSELECTIONMARK to determine the position number of the selected list element 
+Use LVM_GETITEM to read the parameter of the selected list element that denotes the buffer position number
+Read process information from the buffer
+If TProcessState equals psRunning then terminate the process using TerminateProcess.
 */
