@@ -94,4 +94,21 @@ Add columns to the list, specifying headings and widths. For this, use LVM_INSER
 
 /*
 Process service thread
+At the start of the thread creation function, save the position number of the buffer, which will be specified as a parameter during the creation of the thread:
+DWORD WINAPI ProcessThread(void* APos)
+{
+int pos = (int)APos;
+return 0;
+}
+
+Read the name of the file from the buffer and use it launch a process with CreateProcess
+If CreateProcess failed then change the state of the process in the buffer to psError and end the thread.
+Else if the process started then change the state of the process in the buffer to psRunning and write the process name and identifier to the buffer.
+In the thread loop, check whether the process is finished, if true - end the loop if the process. If false then determine the user time and kernel time consumed by the process and add them to the buffer
+After loop ends, change the state of the process in the buffer to psTerminated and close its handle
+*/
+
+/*
+WM_UPDATELIST message
+
 */
