@@ -26,9 +26,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 // Ziņojumu apstrādātājs
 BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
     switch (Msg) { // pārbaudīt ziņojuma identifikatoru
+
     case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
-        // izpildīt inicializācijas darbības
+        Buffer = new TBuffer(hWnd);
         return TRUE;
+
     case WM_COMMAND: // ja tas ir paziņojums no vadības elementa
         switch (LOWORD(wParam)) { // pārbaudīt vadības elementa ID
         case IDOK: // ja bija uzspiesta OK poga
@@ -36,7 +38,9 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             return TRUE;
         }
         return FALSE;
+
     case WM_DESTROY: // ja tas ir pabeigšanas pieprasījums
+        delete Buffer;
         PostQuitMessage(0); // pabeigt programmu
         return TRUE;
     }
