@@ -4,6 +4,7 @@
 #include "resource.h"
 #include "TBuffer.h"
 #include <processthreadsapi.h>
+#include <commctrl.h>
 #pragma warning(disable : 4996)
 
 TBuffer* Buffer;
@@ -29,6 +30,27 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 
     case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
         Buffer = new TBuffer(hWnd);
+
+        // Get the handle to the list control
+        HWND hList = GetDlgItem(hWnd, IDC_LIST);
+
+        // Set the extended style for full row select
+        SendMessage(hList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
+
+        // Add columns to the list control
+        LVCOLUMN lvc;
+        lvc.mask = LVCF_TEXT | LVCF_WIDTH;
+
+       /*
+           // Example:
+        LVITEM lvi;
+        lvi.mask = LVIF_TEXT;
+        lvi.iItem = 0; // Row index
+        lvi.iSubItem = 0; // Column index
+        lvi.pszText = "Sample Process";
+        ListView_InsertItem(hList, &lvi);
+       */
+
         return TRUE;
 
     case WM_COMMAND: // ja tas ir paziņojums no vadības elementa
