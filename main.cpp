@@ -24,6 +24,110 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     return 0;
 }
 
+DWORD FileTimeToMilliseconds(FILETIME ft) {
+    ULARGE_INTEGER i;
+    i.LowPart = ft.dwLowDateTime;
+    i.HighPart = ft.dwHighDateTime;
+    return i.QuadPart / 10000;
+}
+
+
+DWORD WINAPI ProcessThread(void* APos)
+{
+    int pos = (int)APos;
+    TProcessInfo processInfo;
+    Buffer->Get(pos, processInfo);
+
+    // Read the name of the file to be executed
+    char fileName[MAX_PATH];
+    strncpy(fileName, processInfo.Name, sizeof(fileName));
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    if (CreateProcess(
+        NULL,
+        fileName, // Command line
+        NULL,     // Process handle not inheritable
+        NULL,     // Thread handle not inheritable
+        FALSE,    // Set handle inheritance to FALSE
+        0,        // No creation flags
+        NULL,     // Use parent's environment block
+        NULL,     // Use parent's starting directory
+        &si,      // Pointer to STARTUPINFO structure
+        &pi))     // Pointer to PROCESS_INFORMATION structure
+    {
+        // Process started successfully
+        processInfo.State = psRunning;
+        processInfo.PID = pi.dwProcessId;
+
+        // Update the process info in the buffer
+        Buffer->Set(pos, processInfo);
+
+        // Monitor the process
+        while (true)
+        {
+            // Check if the process has finished
+            DWORD exitCode;
+            if (GetExitCodeProcess(pi.hProcess, &exitCode) && exitCode != STILL_ACTIVE)
+            {
+                break; // Process has finished
+            }
+
+            FILETIME creationTime, exitTime, kernelTime, userTime;
+            if (GetProcessTimes(pi.hProcess, &creationTime, &exitTime, &kernelTime, &userTime))
+            {
+                // Calculate user and kernel time in milliseconds
+                DWORD userMilliseconds = FileTimeToMilliseconds(userTime);
+                DWORD kernelMilliseconds = FileTimeToMilliseconds(kernelTime);
+
+                // Calculate the time interval
+                DWORD currentTime = GetTickCount();
+                DWORD elapsedTime = currentTime - processInfo.UserTime; // Assuming you store the previous time
+
+                // Calculate the percentage of time spent
+                float userUsage = 100.0f * static_cast<float>(userMilliseconds - processInfo.UserTime) / elapsedTime;
+                float kernelUsage = 100.0f * static_cast<float>(kernelMilliseconds - processInfo.KernelTime) / elapsedTime;
+
+                // Update processInfo with the new time data
+                processInfo.UserTime = userMilliseconds;
+                processInfo.KernelTime = kernelMilliseconds;
+
+                // Update the process info in the buffer
+                Buffer->Set(pos, processInfo);
+            }
+
+            // Sleep for some time before checking again
+            Sleep(1000); // Sleep for 1 second (adjust as needed)
+        }
+
+        // Process has terminated
+        processInfo.State = psTerminated;
+
+        // Update the process info in the buffer
+        Buffer->Set(pos, processInfo);
+
+        // Close the process handle
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    else
+    {
+        // CreateProcess failed
+        processInfo.State = psError;
+
+        // Update the process info in the buffer
+        Buffer->Set(pos, processInfo);
+    }
+
+    return 0;
+}
+
+
 // Ziņojumu apstrādātājs
 BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
     switch (Msg) { // pārbaudīt ziņojuma identifikatoru
@@ -193,7 +297,7 @@ return 0;
 Read the name of the file from the buffer and use it launch a process with CreateProcess
 If CreateProcess failed then change the state of the process in the buffer to psError and end the thread.
 Else if the process started then change the state of the process in the buffer to psRunning and write the process name and identifier to the buffer.
-In the thread loop, check whether the process is finished, if true - end the loop if the process. If false then determine the user time and kernel time consumed by the process and add them to the buffer
+In the thread loop, check whether the process is finished, if true - end the loop. If false then determine the user time and kernel time consumed by the process and add them to the buffer
 After loop ends, change the state of the process in the buffer to psTerminated and close its handle
 */
 
@@ -205,10 +309,10 @@ If the element is found then read process information from the changed buffer po
 
 /*
 IDC_STARTBTN case
-Find the next empty position in the buffer and write there the name of the process to be launched from the IDC_COMMANDLINE:
+Find the next empty position in the buffer and write there the name of the process to be launched, read from IDC_COMMANDLINE:
 int pos = Buffer.AddProcess(command_line);
 Add the new element to the IDC_LIST via the LVM_INSERTITEM message, specifying the buffer position number as the element parameter.
-Call Process service thread function, pass to it the buffer position number
+Call ProcessThread, pass to it the buffer position number
 Close the handle:
 CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
 */
