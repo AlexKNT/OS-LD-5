@@ -7,6 +7,9 @@
 #include <commctrl.h>
 #pragma warning(disable : 4996)
 
+#define WM_UPDATELIST (WM_USER + 1)
+
+
 TBuffer* Buffer;
 
 // Ziņojumu apstrādātāja prototips
@@ -165,6 +168,43 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         }
         return FALSE;
 
+    case WM_UPDATELIST:
+    {
+        // Retrieve the buffer position number from the wParam parameter
+        int bufferPosition = static_cast<int>(wParam);
+
+        // Get the handle to the list control
+        HWND hList = GetDlgItem(hWnd, IDC_LIST);
+
+        // Use LVM_FINDITEM message to find the list item with lParam equal to the buffer position number
+        LVFINDINFO lvfi;
+        lvfi.flags = LVFI_PARAM;
+        lvfi.lParam = bufferPosition;
+        int listItemIndex = ListView_FindItem(hList, -1, &lvfi);
+
+        if (listItemIndex != -1)
+        {
+            // Update the corresponding list item with process information
+            TProcessInfo processInfo;
+            Buffer->Get(bufferPosition, processInfo);
+
+            LVITEM lvi;
+            lvi.mask = LVIF_TEXT;
+            lvi.iItem = listItemIndex;
+            lvi.iSubItem = 0; // Column index
+            lvi.pszText = processInfo.Name;
+            ListView_SetItem(hList, &lvi);
+
+            // You can update other columns of the list item as needed
+
+            // Redraw the list item
+            ListView_RedrawItems(hList, listItemIndex, listItemIndex);
+        }
+
+        return TRUE;
+    }
+
+
     case WM_DESTROY: // ja tas ir pabeigšanas pieprasījums
         delete Buffer;
         PostQuitMessage(0); // pabeigt programmu
@@ -175,7 +215,7 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 }
 
 /*
-And resource:
+And resource.h contains:
 Dialog IDD_MAINDIALOG, Button IDC_BROWSEBTN, Button IDC_STARTBTN, Edit control IDC_COMMANDLINE, List control IDC_LIST, Button IDC_KILLBTN, Button IDC_DELETEBTN, Button IDCCANCEL
 TBuffer.h contains this code:
 #pragma once
@@ -209,6 +249,10 @@ public:
 
 TBuffer.cpp contains this code:
 #include "TBuffer.h"
+#include <Windows.h>
+
+#define WM_UPDATELIST (WM_USER + 1)
+
 
 TBuffer::TBuffer(HWND AWnd) {
     Wnd = AWnd;
@@ -242,10 +286,11 @@ int TBuffer::AddProcess(char* AName) {
             LeaveCriticalSection(&cs);
 
             // Notify the main window about the change
-            PostMessage(Wnd, WM_USER + 1, i, 0);
+            PostMessage(Wnd, WM_UPDATELIST, i, 0);
             return i;
         }
     }
+
     LeaveCriticalSection(&cs);
     return -1; // Buffer is full
 }
@@ -266,7 +311,7 @@ void TBuffer::Set(int Id, const TProcessInfo Pi) {
     LeaveCriticalSection(&cs);
 
     // Notify the main window about the change
-    PostMessage(Wnd, WM_USER + 1, Id, 0);
+    PostMessage(Wnd, WM_UPDATELIST, Id, 0);
 }
 */
 

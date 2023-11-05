@@ -1,4 +1,8 @@
 #include "TBuffer.h"
+#include <Windows.h>
+
+#define WM_UPDATELIST (WM_USER + 1)
+
 
 TBuffer::TBuffer(HWND AWnd) {
     Wnd = AWnd;
@@ -32,10 +36,11 @@ int TBuffer::AddProcess(char* AName) {
             LeaveCriticalSection(&cs);
 
             // Notify the main window about the change
-            PostMessage(Wnd, WM_USER + 1, i, 0);
+            PostMessage(Wnd, WM_UPDATELIST, i, 0);
             return i;
         }
     }
+
     LeaveCriticalSection(&cs);
     return -1; // Buffer is full
 }
@@ -56,5 +61,5 @@ void TBuffer::Set(int Id, const TProcessInfo Pi) {
     LeaveCriticalSection(&cs);
 
     // Notify the main window about the change
-    PostMessage(Wnd, WM_USER + 1, Id, 0);
+    PostMessage(Wnd, WM_UPDATELIST, Id, 0);
 }
