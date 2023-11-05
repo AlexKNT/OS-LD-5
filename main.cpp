@@ -165,7 +165,37 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case IDOK: // ja bija uzspiesta OK poga
             DestroyWindow(hWnd); // aizvērt logu
             return TRUE;
+
+        case IDC_STARTBTN:
+            char command_line[MAX_PATH];
+            HWND hEdit = GetDlgItem(hWnd, IDC_COMMANDLINE);
+            GetWindowText(hEdit, command_line, sizeof(command_line));
+
+            // Check if the command_line is not empty
+            if (strlen(command_line) > 0) {
+                // Find the next empty position in the buffer and write the name of the process
+                int pos = Buffer->AddProcess(command_line);
+
+                if (pos != -1) {
+                    // Add the new element to the IDC_LIST
+                    HWND hList = GetDlgItem(hWnd, IDC_LIST);
+                    LVITEM lvi;
+                    lvi.mask = LVIF_TEXT | LVIF_PARAM;
+                    lvi.iItem = pos; // Row index
+                    lvi.iSubItem = 0; // Column index
+                    lvi.pszText = command_line;
+                    lvi.lParam = pos; // Use lParam to store the buffer position number
+
+                    ListView_InsertItem(hList, &lvi);
+
+                    // Start a new thread to monitor the process
+                    CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
+                }
+            }
+
+            return TRUE;
         }
+
         return FALSE;
 
     case WM_UPDATELIST:
