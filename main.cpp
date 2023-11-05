@@ -196,6 +196,49 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             return TRUE;
         }
 
+        case IDC_DELETEBTN:
+        {
+            // Get the handle to the list control
+            HWND hList = GetDlgItem(hWnd, IDC_LIST);
+
+            // Use LVM_GETSELECTIONMARK to get the selected item index
+            int selectedItemIndex = ListView_GetSelectionMark(hList);
+
+            // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
+            LVITEM lvi;
+            lvi.mask = LVIF_PARAM;
+            lvi.iItem = selectedItemIndex;
+            lvi.iSubItem = 0;
+            if (ListView_GetItem(hList, &lvi))
+            {
+                int bufferPosition = static_cast<int>(lvi.lParam);
+
+                // Ensure bufferPosition is valid
+                if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
+                {
+                    // Get the process state
+                    TProcessInfo processInfo;
+                    Buffer->Get(bufferPosition, processInfo);
+
+                    if (processInfo.State != psRunning)
+                    {
+                        // Delete the item from the list control using LVM_DELETEITEM
+                        ListView_DeleteItem(hList, selectedItemIndex);
+
+                        // Update the buffer position to psEmpty
+                        processInfo.State = psEmpty;
+                        Buffer->Set(bufferPosition, processInfo);
+                    }
+                    else
+                    {
+                        // Handle the case where the process is running (you can show an error message or take appropriate action)
+                    }
+                }
+            }
+
+            return TRUE;
+        }
+
         return FALSE;
 
     case WM_UPDATELIST:
