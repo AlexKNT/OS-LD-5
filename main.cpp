@@ -239,6 +239,63 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             return TRUE;
         }
 
+        case IDC_KILLBTN:
+        {
+            // Get the handle to the list control
+            HWND hList = GetDlgItem(hWnd, IDC_LIST);
+
+            // Use LVM_GETSELECTIONMARK to get the selected item index
+            int selectedItemIndex = ListView_GetSelectionMark(hList);
+
+            // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
+            LVITEM lvi;
+            lvi.mask = LVIF_PARAM;
+            lvi.iItem = selectedItemIndex;
+            lvi.iSubItem = 0;
+            if (ListView_GetItem(hList, &lvi))
+            {
+                int bufferPosition = static_cast<int>(lvi.lParam);
+
+                // Ensure bufferPosition is valid
+                if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
+                {
+                    // Get the process state
+                    TProcessInfo processInfo;
+                    Buffer->Get(bufferPosition, processInfo);
+
+                    if (processInfo.State == psRunning)
+                    {
+                        // Terminate the process using TerminateProcess
+                        if (processInfo.Handle != NULL)
+                        {
+                            if (TerminateProcess(processInfo.Handle, 0))
+                            {
+                                // The process has been terminated successfully
+                                processInfo.State = psTerminated;
+
+                                // Update the process info in the buffer
+                                Buffer->Set(bufferPosition, processInfo);
+                            }
+                            else
+                            {
+                                // Handle the case where terminating the process failed
+                                // You can show an error message or take appropriate action
+                                processInfo.State = psError;
+                                Buffer->Set(bufferPosition, processInfo);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Handle the case where the process is not running (e.g., already terminated or in an error state)
+                        // You can show an error message or take appropriate action
+                    }
+                }
+            }
+
+            return TRUE;
+        }
+
         return FALSE;
 
     case WM_UPDATELIST:
