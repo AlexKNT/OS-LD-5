@@ -272,7 +272,7 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
                             {
                                 // The process has been terminated successfully
                                 processInfo.State = psTerminated;
-
+                                //
                                 // Update the process info in the buffer
                                 Buffer->Set(bufferPosition, processInfo);
                             }
