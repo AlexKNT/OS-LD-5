@@ -31,7 +31,7 @@ int TBuffer::AddProcess(char* AName) {
     EnterCriticalSection(&cs);
     for (int i = 0; i < BUFFER_SIZE; i++) {
         if (Buf[i].State == psEmpty) {
-            strncpy(Buf[i].Name, AName, sizeof(Buf[i].Name));
+            strncpy_s(Buf[i].Name, AName, sizeof(Buf[i].Name));
             Buf[i].State = psNew;
             LeaveCriticalSection(&cs);
 

@@ -43,7 +43,7 @@ DWORD WINAPI ProcessThread(void* APos)
 
     // Read the name of the file to be executed
     char fileName[MAX_PATH];
-    strncpy(fileName, processInfo.Name, sizeof(fileName));
+    strncpy_s(fileName, processInfo.Name, sizeof(fileName));
 
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
@@ -130,16 +130,37 @@ DWORD WINAPI ProcessThread(void* APos)
     return 0;
 }
 
+bool BrowseForFileName(HWND hWnd, char* fileName) {
+    OPENFILENAME ofn = { 0 };
+    char szFileName[MAX_PATH] = { 0 };
+
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hWnd;
+    ofn.lpstrFilter = "Executable Files (*.exe)\0*.exe\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = szFileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    ofn.lpstrDefExt = "exe";
+
+    if (GetOpenFileNameA(&ofn)) {
+        // Copy the selected file name to the output parameter 'fileName'
+        strcpy(fileName, szFileName);
+        return true;
+    }
+
+    return false;
+}
 
 // Ziņojumu apstrādātājs
 BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
+    HWND hList;
     switch (Msg) { // pārbaudīt ziņojuma identifikatoru
 
     case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
         Buffer = new TBuffer(hWnd);
 
         // Get the handle to the list control
-        HWND hList = GetDlgItem(hWnd, IDC_LIST);
+        hList = GetDlgItem(hWnd, IDC_LIST);
 
         // Set the extended style for full row select
         SendMessage(hList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
@@ -162,9 +183,17 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 
     case WM_COMMAND: // ja tas ir paziņojums no vadības elementa
         switch (LOWORD(wParam)) { // pārbaudīt vadības elementa ID
-        case IDOK: // ja bija uzspiesta OK poga
+        case IDCANCEL: // ja bija uzspiesta OK poga
             DestroyWindow(hWnd); // aizvērt logu
             return TRUE;
+
+        case IDC_BROWSEBTN:
+            char fileName[MAX_PATH];
+            if (BrowseForFileName(hWnd, fileName)) {
+                // Update the command line field with the selected file name
+                SetDlgItemTextA(hWnd, IDC_COMMANDLINE, fileName);
+                return TRUE;
+            }
 
         case IDC_STARTBTN:
             char command_line[MAX_PATH];
