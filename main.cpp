@@ -169,15 +169,29 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         LVCOLUMN lvc;
         lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 
-       /*
-           // Example:
-        LVITEM lvi;
-        lvi.mask = LVIF_TEXT;
-        lvi.iItem = 0; // Row index
-        lvi.iSubItem = 0; // Column index
-        lvi.pszText = "Sample Process";
-        ListView_InsertItem(hList, &lvi);
-       */
+        lvc.pszText = const_cast < LPSTR>("Name");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 0, (LPARAM)&lvc);
+
+        lvc.pszText = const_cast <LPSTR>("State");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 1, (LPARAM)&lvc);
+
+        lvc.pszText = const_cast <LPSTR>("Handle");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 2, (LPARAM)&lvc);
+
+        lvc.pszText = const_cast <LPSTR>("PID");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 3, (LPARAM)&lvc);
+
+        lvc.pszText = const_cast <LPSTR>("Time in User Mode");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 4, (LPARAM)&lvc);
+
+        lvc.pszText = const_cast <LPSTR>("Time in Kernel Mode");
+        lvc.cx = 150;
+        SendMessage(hList, LVM_INSERTCOLUMN, 5, (LPARAM)&lvc);
 
         return TRUE;
 
