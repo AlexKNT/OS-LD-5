@@ -253,15 +253,12 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
                     lvi.lParam = pos; // Use lParam to store the buffer position number
 
                     int newItemIndex = ListView_InsertItem(hList, &lvi);
-
-                    ListView_SetItemText(hList, newItemIndex, eSTATE, const_cast<LPSTR>("Just launched"));
-                    ListView_SetItemText(hList, newItemIndex, eHANDLE, const_cast<LPSTR>("0"));
-                    ListView_SetItemText(hList, newItemIndex, ePID, const_cast<LPSTR>("0"));
-                    ListView_SetItemText(hList, newItemIndex, eUTIME, const_cast<LPSTR>("0"));
-                    ListView_SetItemText(hList, newItemIndex, eKTIME, const_cast<LPSTR>("0"));
-
                     // Start a new thread to monitor the process
-                    CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
+                    auto handle = CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL);
+                    char buf[20];
+                    snprintf(buf, sizeof(buf), "%lu", GetThreadId(handle));
+                    ListView_SetItemText(hList, newItemIndex, eHANDLE, buf);
+                    CloseHandle(handle);
                 }
             }
 
