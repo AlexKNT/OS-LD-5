@@ -9,8 +9,10 @@
 
 #define WM_UPDATELIST (WM_USER + 1)
 
+enum column { eNAME, eSTATE, eHANDLE, ePID, eUTIME, eKTIME };
 
 TBuffer* Buffer;
+HWND hList;
 
 // Ziņojumu apstrādātāja prototips
 BOOL CALLBACK MainWndProc(HWND, UINT, WPARAM, LPARAM);
@@ -52,6 +54,8 @@ DWORD WINAPI ProcessThread(void* APos)
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
+    char strbuf[100];
+
     if (CreateProcess(
         NULL,
         fileName, // Command line
@@ -70,6 +74,12 @@ DWORD WINAPI ProcessThread(void* APos)
 
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
+
+        ListView_SetItemText(hList, pos, eSTATE, const_cast<LPSTR>("Running"));
+
+        memset(strbuf, 0, sizeof(strbuf));
+        snprintf(strbuf, sizeof(strbuf), "%lu", pi.dwProcessId);
+        ListView_SetItemText(hList, pos, ePID, strbuf);
 
         // Monitor the process
         while (true)
@@ -102,6 +112,15 @@ DWORD WINAPI ProcessThread(void* APos)
 
                 // Update the process info in the buffer
                 Buffer->Set(pos, processInfo);
+
+                memset(strbuf, 0, sizeof(strbuf));
+                snprintf(strbuf, sizeof(strbuf), "%f", userUsage);
+
+                ListView_SetItemText(hList, pos, eUTIME, const_cast<LPSTR>(strbuf));
+
+                memset(strbuf, 0, sizeof(strbuf));
+                snprintf(strbuf, sizeof(strbuf), "%f", kernelUsage);
+                ListView_SetItemText(hList, pos, eKTIME, const_cast<LPSTR>(strbuf));
             }
 
             // Sleep for some time before checking again
@@ -114,6 +133,8 @@ DWORD WINAPI ProcessThread(void* APos)
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
 
+        ListView_SetItemText(hList, pos, eSTATE, const_cast<LPSTR>("Terminated"));
+
         // Close the process handle
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
@@ -125,6 +146,8 @@ DWORD WINAPI ProcessThread(void* APos)
 
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
+
+        ListView_SetItemText(hList, pos, eSTATE, const_cast<LPSTR>("Error"));
     }
 
     return 0;
@@ -153,7 +176,7 @@ bool BrowseForFileName(HWND hWnd, char* fileName) {
 
 // Ziņojumu apstrādātājs
 BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
-    HWND hList;
+    
     switch (Msg) { // pārbaudīt ziņojuma identifikatoru
 
     case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
@@ -169,29 +192,29 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         LVCOLUMN lvc;
         lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 
-        lvc.pszText = const_cast < LPSTR>("Name");
+        lvc.pszText = const_cast<LPSTR>("Name");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 0, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, eNAME, (LPARAM)&lvc);
 
         lvc.pszText = const_cast <LPSTR>("State");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 1, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, eSTATE, (LPARAM)&lvc);
 
         lvc.pszText = const_cast <LPSTR>("Handle");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 2, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, eHANDLE, (LPARAM)&lvc);
 
         lvc.pszText = const_cast <LPSTR>("PID");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 3, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, ePID, (LPARAM)&lvc);
 
         lvc.pszText = const_cast <LPSTR>("Time in User Mode");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 4, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, eUTIME, (LPARAM)&lvc);
 
         lvc.pszText = const_cast <LPSTR>("Time in Kernel Mode");
         lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, 5, (LPARAM)&lvc);
+        SendMessage(hList, LVM_INSERTCOLUMN, eKTIME, (LPARAM)&lvc);
 
         return TRUE;
 
@@ -225,11 +248,17 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
                     LVITEM lvi;
                     lvi.mask = LVIF_TEXT | LVIF_PARAM;
                     lvi.iItem = pos; // Row index
-                    lvi.iSubItem = 0; // Column index
+                    lvi.iSubItem = eNAME; // Column index
                     lvi.pszText = command_line;
                     lvi.lParam = pos; // Use lParam to store the buffer position number
 
-                    ListView_InsertItem(hList, &lvi);
+                    int newItemIndex = ListView_InsertItem(hList, &lvi);
+
+                    ListView_SetItemText(hList, newItemIndex, eSTATE, const_cast<LPSTR>("Just launched"));
+                    ListView_SetItemText(hList, newItemIndex, eHANDLE, const_cast<LPSTR>("0"));
+                    ListView_SetItemText(hList, newItemIndex, ePID, const_cast<LPSTR>("0"));
+                    ListView_SetItemText(hList, newItemIndex, eUTIME, const_cast<LPSTR>("0"));
+                    ListView_SetItemText(hList, newItemIndex, eKTIME, const_cast<LPSTR>("0"));
 
                     // Start a new thread to monitor the process
                     CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
