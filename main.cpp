@@ -36,6 +36,10 @@ DWORD FileTimeToMilliseconds(FILETIME ft) {
     return i.QuadPart / 10000;
 }
 
+void UpdateListView(int pos) {
+    // Send the WM_UPDATELIST message to the main window
+    PostMessage(hList, WM_UPDATELIST, pos, 0);
+}
 
 DWORD WINAPI ProcessThread(void* APos)
 {
@@ -75,12 +79,6 @@ DWORD WINAPI ProcessThread(void* APos)
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
 
-        ListView_SetItemText(hList, pos, eSTATE, const_cast<LPSTR>("Running"));
-
-        memset(strbuf, 0, sizeof(strbuf));
-        snprintf(strbuf, sizeof(strbuf), "%lu", pi.dwProcessId);
-        ListView_SetItemText(hList, pos, ePID, strbuf);
-
         // Monitor the process
         while (true)
         {
@@ -110,17 +108,17 @@ DWORD WINAPI ProcessThread(void* APos)
                 processInfo.UserTime = userMilliseconds;
                 processInfo.KernelTime = kernelMilliseconds;
 
+                // Update the process state (you may need to adjust this based on your specific conditions)
+                if (exitCode != STILL_ACTIVE)
+                    processInfo.State = psTerminated;
+                else
+                    processInfo.State = psRunning;
+
                 // Update the process info in the buffer
                 Buffer->Set(pos, processInfo);
 
-                memset(strbuf, 0, sizeof(strbuf));
-                snprintf(strbuf, sizeof(strbuf), "%f", userUsage);
-
-                ListView_SetItemText(hList, pos, eUTIME, const_cast<LPSTR>(strbuf));
-
-                memset(strbuf, 0, sizeof(strbuf));
-                snprintf(strbuf, sizeof(strbuf), "%f", kernelUsage);
-                ListView_SetItemText(hList, pos, eKTIME, const_cast<LPSTR>(strbuf));
+                // Send a message to the main window to update the list view
+                UpdateListView(pos);
             }
 
             // Sleep for some time before checking again
@@ -133,7 +131,7 @@ DWORD WINAPI ProcessThread(void* APos)
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
 
-        ListView_SetItemText(hList, pos, eSTATE, const_cast<LPSTR>("Terminated"));
+        UpdateListView(pos);
 
         // Close the process handle
         CloseHandle(pi.hProcess);
@@ -173,6 +171,24 @@ bool BrowseForFileName(HWND hWnd, char* fileName) {
 
     return false;
 }
+
+const char* GetProcessStateString(TProcessState state) {
+    switch (state) {
+    case psEmpty:
+        return "Empty";
+    case psNew:
+        return "New";
+    case psRunning:
+        return "Running";
+    case psTerminated:
+        return "Terminated";
+    case psError:
+        return "Error";
+    default:
+        return "Unknown";
+    }
+}
+
 
 // Ziņojumu apstrādātājs
 BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
@@ -387,14 +403,51 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             TProcessInfo processInfo;
             Buffer->Get(bufferPosition, processInfo);
 
-            LVITEM lvi;
-            lvi.mask = LVIF_TEXT;
-            lvi.iItem = listItemIndex;
-            lvi.iSubItem = 0; // Column index
-            lvi.pszText = processInfo.Name;
-            ListView_SetItem(hList, &lvi);
+            // Update Name (eNAME) column
+            LVITEM lviName;
+            lviName.mask = LVIF_TEXT;
+            lviName.iItem = listItemIndex;
+            lviName.iSubItem = eNAME; // Column index for Name
+            lviName.pszText = processInfo.Name;
+            ListView_SetItem(hList, &lviName);
 
-            // You can update other columns of the list item as needed
+            // Update State (eSTATE) column
+            LVITEM lviState;
+            lviState.mask = LVIF_TEXT;
+            lviState.iItem = listItemIndex;
+            lviState.iSubItem = eSTATE; // Column index for State
+            lviState.pszText = const_cast<LPSTR>(GetProcessStateString(processInfo.State)); // You need to implement GetProcessStateString
+            ListView_SetItem(hList, &lviState);
+
+            // Update PID (ePID) column
+            LVITEM lviPID;
+            lviPID.mask = LVIF_TEXT;
+            lviPID.iItem = listItemIndex;
+            lviPID.iSubItem = ePID; // Column index for PID
+            char strPID[20];
+            snprintf(strPID, sizeof(strPID), "%d", processInfo.PID);
+            lviPID.pszText = strPID;
+            ListView_SetItem(hList, &lviPID);
+
+            // Update Time in User Mode (eUTIME) column
+            LVITEM lviUTime;
+            lviUTime.mask = LVIF_TEXT;
+            lviUTime.iItem = listItemIndex;
+            lviUTime.iSubItem = eUTIME; // Column index for Time in User Mode
+            char strUTime[20];
+            snprintf(strUTime, sizeof(strUTime), "%d", processInfo.UserTime);
+            lviUTime.pszText = strUTime;
+            ListView_SetItem(hList, &lviUTime);
+
+            // Update Time in Kernel Mode (eKTIME) column
+            LVITEM lviKTime;
+            lviKTime.mask = LVIF_TEXT;
+            lviKTime.iItem = listItemIndex;
+            lviKTime.iSubItem = eKTIME; // Column index for Time in Kernel Mode
+            char strKTime[20];
+            snprintf(strKTime, sizeof(strKTime), "%d", processInfo.KernelTime);
+            lviKTime.pszText = strKTime;
+            ListView_SetItem(hList, &lviKTime);
 
             // Redraw the list item
             ListView_RedrawItems(hList, listItemIndex, listItemIndex);
@@ -402,6 +455,8 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 
         return TRUE;
     }
+
+
 
 
     case WM_DESTROY: // ja tas ir pabeigšanas pieprasījums
