@@ -100,13 +100,9 @@ DWORD WINAPI ProcessThread(void* APos)
                 DWORD currentTime = GetTickCount();
                 DWORD elapsedTime = currentTime - processInfo.UserTime; // Assuming you store the previous time
 
-                // Calculate the percentage of time spent
-                float userUsage = 100.0f * static_cast<float>(userMilliseconds - processInfo.UserTime) / elapsedTime;
-                float kernelUsage = 100.0f * static_cast<float>(kernelMilliseconds - processInfo.KernelTime) / elapsedTime;
-
                 // Update processInfo with the new time data
-                processInfo.UserTime = userMilliseconds;
-                processInfo.KernelTime = kernelMilliseconds;
+                processInfo.UserTime = static_cast<int>(userMilliseconds);
+                processInfo.KernelTime = static_cast<int>(kernelMilliseconds);
 
                 // Update the process state (you may need to adjust this based on your specific conditions)
                 if (exitCode != STILL_ACTIVE)
