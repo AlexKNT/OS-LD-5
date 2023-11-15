@@ -75,6 +75,7 @@ DWORD WINAPI ProcessThread(void* APos)
         // Process started successfully
         processInfo.State = psRunning;
         processInfo.PID = pi.dwProcessId;
+        processInfo.Handle = pi.hProcess;
 
         // Update the process info in the buffer
         Buffer->Set(pos, processInfo);
@@ -130,8 +131,8 @@ DWORD WINAPI ProcessThread(void* APos)
         UpdateListView(pos);
 
         // Close the process handle
-        CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
     }
     else
     {
@@ -266,11 +267,8 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 
                     int newItemIndex = ListView_InsertItem(hList, &lvi);
                     // Start a new thread to monitor the process
-                    auto handle = CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL);
-                    char buf[20];
-                    snprintf(buf, sizeof(buf), "%lu", GetThreadId(handle));
-                    ListView_SetItemText(hList, newItemIndex, eHANDLE, buf);
-                    CloseHandle(handle);
+                    CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
+                    
                 }
             }
 
@@ -340,42 +338,46 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
                 // Ensure bufferPosition is valid
                 if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
                 {
-                    // Get the process state
+                    // Get the process info
                     TProcessInfo processInfo;
                     Buffer->Get(bufferPosition, processInfo);
 
+                    // Check if the process is running
                     if (processInfo.State == psRunning)
                     {
-                        // Terminate the process using TerminateProcess
-                        if (processInfo.Handle != NULL)
+                        // Terminate the process
+                        if (TerminateProcess(processInfo.Handle, 0))
                         {
-                            if (TerminateProcess(processInfo.Handle, 0))
-                            {
-                                // The process has been terminated successfully
-                                processInfo.State = psTerminated;
-                                //
-                                // Update the process info in the buffer
-                                Buffer->Set(bufferPosition, processInfo);
-                            }
-                            else
-                            {
-                                // Handle the case where terminating the process failed
-                                // You can show an error message or take appropriate action
-                                processInfo.State = psError;
-                                Buffer->Set(bufferPosition, processInfo);
-                            }
+                            // Wait for the thread associated with the process to exit
+                            WaitForSingleObject(processInfo.Handle, INFINITE);
+
+                            // Close the process handle
+                            CloseHandle(processInfo.Handle);
+
+                            // Update the process state in the buffer
+                            processInfo.State = psTerminated;
+                            Buffer->Set(bufferPosition, processInfo);
+
+                            // Update the list view
+                            UpdateListView(bufferPosition);
+                        }
+                        else
+                        {
+                            // Handle the case where TerminateProcess failed
+                            MessageBox(hWnd, "Failed to terminate the process.", "Error", MB_OK | MB_ICONERROR);
                         }
                     }
                     else
                     {
-                        // Handle the case where the process is not running (e.g., already terminated or in an error state)
-                        // You can show an error message or take appropriate action
+                        // Handle the case where the process is not running (you can show an error message or take appropriate action)
+                        MessageBox(hWnd, "The selected process is not running.", "Error", MB_OK | MB_ICONERROR);
                     }
                 }
             }
 
             return TRUE;
         }
+
 
         return FALSE;
 
@@ -415,6 +417,16 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             lviState.pszText = const_cast<LPSTR>(GetProcessStateString(processInfo.State)); // You need to implement GetProcessStateString
             ListView_SetItem(hList, &lviState);
 
+            // Update Handle (eHANDLE) column
+            LVITEM lviHandle;
+            lviHandle.mask = LVIF_TEXT;
+            lviHandle.iItem = listItemIndex;
+            lviHandle.iSubItem = eHANDLE; // Column index for Handle
+            char strHandle[20];
+            snprintf(strHandle, sizeof(strHandle), "%lu", processInfo.Handle);
+            lviHandle.pszText = strHandle;
+            ListView_SetItem(hList, &lviHandle);
+
             // Update PID (ePID) column
             LVITEM lviPID;
             lviPID.mask = LVIF_TEXT;
@@ -451,9 +463,6 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
 
         return TRUE;
     }
-
-
-
 
     case WM_DESTROY: // ja tas ir pabeigšanas pieprasījums
         delete Buffer;
