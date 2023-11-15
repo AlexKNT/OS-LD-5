@@ -1,8 +1,9 @@
+// TBuffer.cpp
+
 #include "TBuffer.h"
 #include <Windows.h>
 
 #define WM_UPDATELIST (WM_USER + 1)
-
 
 TBuffer::TBuffer(HWND AWnd) {
     Wnd = AWnd;
@@ -13,7 +14,6 @@ TBuffer::~TBuffer() {
     DeleteCriticalSection(&cs);
     // Cleanup any other resources if needed
 }
-
 
 int TBuffer::Count() {
     EnterCriticalSection(&cs);
@@ -61,5 +61,20 @@ void TBuffer::Set(int Id, const TProcessInfo Pi) {
     LeaveCriticalSection(&cs);
 
     // Notify the main window about the change
+    PostMessage(Wnd, WM_UPDATELIST, Id, 0);
+}
+
+HANDLE TBuffer::GetThreadHandle(int Id) {
+    EnterCriticalSection(&cs);
+    HANDLE hThread = Buf[Id].ThreadHandle;
+    LeaveCriticalSection(&cs);
+    return hThread;
+}
+
+void TBuffer::SetThreadHandle(int Id, HANDLE hThread) {
+    EnterCriticalSection(&cs);
+    Buf[Id].ThreadHandle = hThread;
+    LeaveCriticalSection(&cs);
+    // Notify the main window about the change (optional, depending on your needs)
     PostMessage(Wnd, WM_UPDATELIST, Id, 0);
 }

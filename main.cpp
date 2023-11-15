@@ -192,191 +192,208 @@ BOOL CALLBACK MainWndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
     
     switch (Msg) { // pārbaudīt ziņojuma identifikatoru
 
-    case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
-        Buffer = new TBuffer(hWnd);
+        case WM_INITDIALOG: // ja tas ir inicializācijas paziņojums
+            Buffer = new TBuffer(hWnd);
 
-        // Get the handle to the list control
-        hList = GetDlgItem(hWnd, IDC_LIST);
+            // Get the handle to the list control
+            hList = GetDlgItem(hWnd, IDC_LIST);
 
-        // Set the extended style for full row select
-        SendMessage(hList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
+            // Set the extended style for full row select
+            SendMessage(hList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
 
-        // Add columns to the list control
-        LVCOLUMN lvc;
-        lvc.mask = LVCF_TEXT | LVCF_WIDTH;
+            // Add columns to the list control
+            LVCOLUMN lvc;
+            lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 
-        lvc.pszText = const_cast<LPSTR>("Name");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, eNAME, (LPARAM)&lvc);
+            lvc.pszText = const_cast<LPSTR>("Name");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, eNAME, (LPARAM)&lvc);
 
-        lvc.pszText = const_cast <LPSTR>("State");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, eSTATE, (LPARAM)&lvc);
+            lvc.pszText = const_cast <LPSTR>("State");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, eSTATE, (LPARAM)&lvc);
 
-        lvc.pszText = const_cast <LPSTR>("Handle");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, eHANDLE, (LPARAM)&lvc);
+            lvc.pszText = const_cast <LPSTR>("Handle");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, eHANDLE, (LPARAM)&lvc);
 
-        lvc.pszText = const_cast <LPSTR>("PID");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, ePID, (LPARAM)&lvc);
+            lvc.pszText = const_cast <LPSTR>("PID");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, ePID, (LPARAM)&lvc);
 
-        lvc.pszText = const_cast <LPSTR>("Time in User Mode");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, eUTIME, (LPARAM)&lvc);
+            lvc.pszText = const_cast <LPSTR>("Time in User Mode");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, eUTIME, (LPARAM)&lvc);
 
-        lvc.pszText = const_cast <LPSTR>("Time in Kernel Mode");
-        lvc.cx = 150;
-        SendMessage(hList, LVM_INSERTCOLUMN, eKTIME, (LPARAM)&lvc);
+            lvc.pszText = const_cast <LPSTR>("Time in Kernel Mode");
+            lvc.cx = 150;
+            SendMessage(hList, LVM_INSERTCOLUMN, eKTIME, (LPARAM)&lvc);
 
-        return TRUE;
+            return TRUE;
 
     case WM_COMMAND: // ja tas ir paziņojums no vadības elementa
         switch (LOWORD(wParam)) { // pārbaudīt vadības elementa ID
-        case IDCANCEL: // ja bija uzspiesta OK poga
-            DestroyWindow(hWnd); // aizvērt logu
-            return TRUE;
-
-        case IDC_BROWSEBTN:
-            char fileName[MAX_PATH];
-            if (BrowseForFileName(hWnd, fileName)) {
-                // Update the command line field with the selected file name
-                SetDlgItemTextA(hWnd, IDC_COMMANDLINE, fileName);
+            case IDCANCEL: // ja bija uzspiesta OK poga
+                DestroyWindow(hWnd); // aizvērt logu
                 return TRUE;
-            }
 
-        case IDC_STARTBTN:
-            char command_line[MAX_PATH];
-            HWND hEdit = GetDlgItem(hWnd, IDC_COMMANDLINE);
-            GetWindowText(hEdit, command_line, sizeof(command_line));
-
-            // Check if the command_line is not empty
-            if (strlen(command_line) > 0) {
-                // Find the next empty position in the buffer and write the name of the process
-                int pos = Buffer->AddProcess(command_line);
-
-                if (pos != -1) {
-                    // Add the new element to the IDC_LIST
-                    HWND hList = GetDlgItem(hWnd, IDC_LIST);
-                    LVITEM lvi;
-                    lvi.mask = LVIF_TEXT | LVIF_PARAM;
-                    lvi.iItem = pos; // Row index
-                    lvi.iSubItem = eNAME; // Column index
-                    lvi.pszText = command_line;
-                    lvi.lParam = pos; // Use lParam to store the buffer position number
-
-                    int newItemIndex = ListView_InsertItem(hList, &lvi);
-                    // Start a new thread to monitor the process
-                    CloseHandle(CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL));
-                    
+            case IDC_BROWSEBTN:
+                char fileName[MAX_PATH];
+                if (BrowseForFileName(hWnd, fileName)) {
+                    // Update the command line field with the selected file name
+                    SetDlgItemTextA(hWnd, IDC_COMMANDLINE, fileName);
+                    return TRUE;
                 }
-            }
 
-            return TRUE;
-        }
-
-        case IDC_DELETEBTN:
-        {
-            // Get the handle to the list control
-            HWND hList = GetDlgItem(hWnd, IDC_LIST);
-
-            // Use LVM_GETSELECTIONMARK to get the selected item index
-            int selectedItemIndex = ListView_GetSelectionMark(hList);
-
-            // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
+            HWND hEdit;
             LVITEM lvi;
-            lvi.mask = LVIF_PARAM;
-            lvi.iItem = selectedItemIndex;
-            lvi.iSubItem = 0;
-            if (ListView_GetItem(hList, &lvi))
-            {
-                int bufferPosition = static_cast<int>(lvi.lParam);
+            case IDC_STARTBTN:
+                char command_line[MAX_PATH];
+                hEdit = GetDlgItem(hWnd, IDC_COMMANDLINE);
+                GetWindowText(hEdit, command_line, sizeof(command_line));
 
-                // Ensure bufferPosition is valid
-                if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
-                {
-                    // Get the process state
-                    TProcessInfo processInfo;
-                    Buffer->Get(bufferPosition, processInfo);
+                // Check if the command_line is not empty
+                if (strlen(command_line) > 0) {
+                    // Find the next empty position in the buffer and write the name of the process
+                    int pos = Buffer->AddProcess(command_line);
 
-                    if (processInfo.State != psRunning)
-                    {
-                        // Delete the item from the list control using LVM_DELETEITEM
-                        ListView_DeleteItem(hList, selectedItemIndex);
+                    if (pos != -1) {
+                        // Add the new element to the IDC_LIST
+                        hList = GetDlgItem(hWnd, IDC_LIST);
+                        
+                        lvi.mask = LVIF_TEXT | LVIF_PARAM;
+                        lvi.iItem = pos; // Row index
+                        lvi.iSubItem = eNAME; // Column index
+                        lvi.pszText = command_line;
+                        lvi.lParam = pos; // Use lParam to store the buffer position number
 
-                        // Update the buffer position to psEmpty
-                        processInfo.State = psEmpty;
-                        Buffer->Set(bufferPosition, processInfo);
-                    }
-                    else
-                    {
-                        // Handle the case where the process is running (you can show an error message or take appropriate action)
-                    }
-                }
-            }
-
-            return TRUE;
-        }
-
-        case IDC_KILLBTN:
-        {
-            // Get the handle to the list control
-            HWND hList = GetDlgItem(hWnd, IDC_LIST);
-
-            // Use LVM_GETSELECTIONMARK to get the selected item index
-            int selectedItemIndex = ListView_GetSelectionMark(hList);
-
-            // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
-            LVITEM lvi;
-            lvi.mask = LVIF_PARAM;
-            lvi.iItem = selectedItemIndex;
-            lvi.iSubItem = 0;
-            if (ListView_GetItem(hList, &lvi))
-            {
-                int bufferPosition = static_cast<int>(lvi.lParam);
-
-                // Ensure bufferPosition is valid
-                if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
-                {
-                    // Get the process info
-                    TProcessInfo processInfo;
-                    Buffer->Get(bufferPosition, processInfo);
-
-                    // Check if the process is running
-                    if (processInfo.State == psRunning)
-                    {
-                        // Terminate the process
-                        if (TerminateProcess(processInfo.Handle, 0))
-                        {
-                            // Wait for the thread associated with the process to exit
-                            WaitForSingleObject(processInfo.Handle, INFINITE);
-
-                            // Close the process handle
-                            CloseHandle(processInfo.Handle);
-
+                        int newItemIndex = ListView_InsertItem(hList, &lvi);
+                        // Start a new thread to monitor the process
+                        HANDLE hThread = CreateThread(NULL, 0, ProcessThread, (LPVOID)pos, 0, NULL);
+                        if (hThread != NULL) {
+                            // Store the thread handle in the buffer for later use
+                            Buffer->SetThreadHandle(pos, hThread);
+                        }
+                        else {
+                            // Handle thread creation failure (you can show an error message or take appropriate action)
+                            MessageBox(hWnd, "Failed to create the monitoring thread.", "Error", MB_OK | MB_ICONERROR);
                             // Update the process state in the buffer
-                            processInfo.State = psTerminated;
-                            Buffer->Set(bufferPosition, processInfo);
+                            TProcessInfo processInfo;
+                            processInfo.State = psError;
+                            Buffer->Set(pos, processInfo);
+                            // Remove the item from the list control
+                            ListView_DeleteItem(hList, newItemIndex);
+                        }
+                    }
+                }
 
-                            // Update the list view
-                            UpdateListView(bufferPosition);
+                return TRUE;
+        
+                int selectedItemIndex;
+            case IDC_KILLBTN:
+                // Get the handle to the list control
+                hList = GetDlgItem(hWnd, IDC_LIST);
+
+                // Use LVM_GETSELECTIONMARK to get the selected item index
+                selectedItemIndex = ListView_GetSelectionMark(hList);
+
+                // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
+                lvi.mask = LVIF_PARAM;
+                lvi.iItem = selectedItemIndex;
+                lvi.iSubItem = 0;
+                if (ListView_GetItem(hList, &lvi))
+                {
+                    int bufferPosition = static_cast<int>(lvi.lParam);
+
+                    // Ensure bufferPosition is valid
+                    if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
+                    {
+                        // Get the process info
+                        TProcessInfo processInfo;
+                        Buffer->Get(bufferPosition, processInfo);
+
+                        // Check if the process is running
+                        if (processInfo.State == psRunning)
+                        {
+                            // Terminate the process
+                            if (TerminateProcess(processInfo.Handle, 0))
+                            {
+                                // Wait for the thread associated with the process to exit
+                                WaitForSingleObject(processInfo.ThreadHandle, INFINITE);
+
+                                // Close the thread handle
+                                CloseHandle(processInfo.ThreadHandle);
+
+                                // Close the process handle
+                                CloseHandle(processInfo.Handle);
+
+                                // Update the process state in the buffer
+                                processInfo.State = psTerminated;
+                                Buffer->Set(bufferPosition, processInfo);
+
+                                // Update the list view
+                                UpdateListView(bufferPosition);
+                            }
+                            else
+                            {
+                                // Handle the case where TerminateProcess failed
+                                MessageBox(hWnd, "Failed to terminate the process.", "Error", MB_OK | MB_ICONERROR);
+                            }
                         }
                         else
                         {
-                            // Handle the case where TerminateProcess failed
-                            MessageBox(hWnd, "Failed to terminate the process.", "Error", MB_OK | MB_ICONERROR);
+                            // Handle the case where the process is not running
+                            MessageBox(hWnd, "The selected process is not running.", "Error", MB_OK | MB_ICONERROR);
                         }
                     }
-                    else
+                }
+
+                return TRUE;
+
+            case IDC_DELETEBTN:
+                // Get the handle to the list control
+                hList = GetDlgItem(hWnd, IDC_LIST);
+
+                // Use LVM_GETSELECTIONMARK to get the selected item index
+                selectedItemIndex = ListView_GetSelectionMark(hList);
+
+                // Use LVM_GETITEM to get the buffer position number (lParam) of the selected item
+                lvi.mask = LVIF_PARAM;
+                lvi.iItem = selectedItemIndex;
+                lvi.iSubItem = 0;
+                if (ListView_GetItem(hList, &lvi))
+                {
+                    int bufferPosition = static_cast<int>(lvi.lParam);
+
+                    // Ensure bufferPosition is valid
+                    if (bufferPosition >= 0 && bufferPosition < BUFFER_SIZE)
                     {
-                        // Handle the case where the process is not running (you can show an error message or take appropriate action)
-                        MessageBox(hWnd, "The selected process is not running.", "Error", MB_OK | MB_ICONERROR);
+                        // Get the process state
+                        TProcessInfo processInfo;
+                        Buffer->Get(bufferPosition, processInfo);
+
+                        if (processInfo.State != psRunning)
+                        {
+                            // Delete the item from the list control using LVM_DELETEITEM
+                            ListView_DeleteItem(hList, selectedItemIndex);
+
+                            // Update the buffer position to psEmpty
+                            processInfo.State = psEmpty;
+                            Buffer->Set(bufferPosition, processInfo);
+                        }
+                        else
+                        {
+                            // Handle the case where the process is running (you can show an error message or take appropriate action)
+                        }
                     }
                 }
-            }
 
-            return TRUE;
+                return TRUE;
         }
+
+
+
+
 
 
         return FALSE;
